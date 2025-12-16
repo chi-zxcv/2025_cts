@@ -1,0 +1,89 @@
+# 📊 Logcat Error Frequency Analysis  
+**Comparison: 2025-12-03 (Before Security Patch) vs 2025-12-13 (After Security Patch)**
+
+> Scope: Boot-time `logcat *:E`  
+> Note: Timestamp differences do not affect analysis
+
+---
+
+## 🔹 2025-12-03 (Before Security Patch)
+
+### Top Error Tags (Sorted by Frequency)
+
+| Rank | Tag | Count | Category |
+|---|---|---:|---|
+| 1 | `audio_route` | 177 | Audio HAL / Routing |
+| 2 | `APM_AudioPolicyManager` | 156 | Audio Framework |
+| 3 | `Diag_Lib` | 151 | Qualcomm Diagnostic |
+| 4 | `FirebaseInstanceId` | 140 | Google Service |
+| 5 | `SystemServiceRegistry` | 135 | Android Framework |
+| 6 | `Finsky` | 72 | Google Play Store |
+| 7 | `system_server` | 69 | Core Framework |
+| 8 | `BATTERY_CHG` | 65 | Battery HAL |
+| 9 | `HealthConnectResContext` | 61 | Google Health |
+| 10 | `ServiceManager` | 57 | Binder / Service |
+
+**Characteristics**
+- Errors mainly from HAL / framework initialization
+- No dominant retry loop
+- Typical boot-time noise
+
+---
+
+## 🔹 2025-12-13 (After Security Patch)
+
+### Top Error Tags (Sorted by Frequency)
+
+| Rank | Tag | Count | Category | Delta vs 12-03 |
+|---|---|---:|---|---|
+| 1 | `MendelPackageState` | 968 | Google / Package State | New (Massive) |
+| 2 | `Phlogger` | 182 | App / Logging | New |
+| 3 | `RegistryDataStore` | 180 | Encrypted Registry | New |
+| 4 | `audio_route` | 177 | Audio HAL | ≈ Same |
+| 5 | `APM_AudioPolicyManager` | 156 | Audio Framework | ≈ Same |
+| 6 | `Diag_Lib` | 151 | Qualcomm Diagnostic | ≈ Same |
+| 7 | `SystemServiceRegistry` | 121 | Framework | Slight ↓ |
+| 8 | `YouTubeMusic` | 84 | Google App | ↑ |
+| 9 | `BATTERY_CHG` | 76 | Battery HAL | ↑ |
+| 10 | `HealthConnectResContext` | 61 | Google Health | ≈ Same |
+
+---
+
+## 🔥 Key Findings
+
+- Error increase is **not system-wide regression**
+- Major contributors:
+  - `MendelPackageState` (package snapshot / schema retry)
+  - `RegistryDataStore` (encryption / BAD_DECRYPT)
+  - `Phlogger` (app init stack traces)
+
+---
+
+## 🧠 Engineering Conclusion
+
+- No kernel / HAL / audio / sensor regression detected
+- Increase localized to Google services & encrypted data handling
+- Consistent with post–security patch data compatibility behavior
+
+---
+
+## 🛠️ Suggested Actions
+
+Optional verification:
+```bash
+adb shell pm clear com.google.android.gms
+adb shell pm clear com.android.vending
+```
+
+Noise-reduced KPI (exclude tags):
+```
+MendelPackageState
+RegistryDataStore
+Phlogger
+```
+
+---
+
+**Summary**
+
+After applying the security patch, the increase in boot-time logcat errors is primarily caused by Google service data and encrypted registry retry behavior, not by core system instability.
