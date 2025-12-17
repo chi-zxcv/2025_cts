@@ -100,6 +100,25 @@ ServiceManager                  57
 ANDR-IOP                       49
 ```
 
+```
+### 🔹 2025-12-16 dailybuild
+dwdn                         166
+FirebaseInstanceId           126
+BATTERY_CHG                  120
+keystore2                    120
+Finsky                        64
+HealthConnectResContext       61
+khb                           60
+ssgtzd                        53
+OF                            50
+QC-time-services              50
+SystemServiceRegistry         48
+ContextImpl                   45
+LTE                           43
+iczw                          38
+DocsApplication               34
+```
+
 ---
 
 ## 🎯 Focus: MM_OSAL Verification
