@@ -1,0 +1,231 @@
+🔴 高重要性（High Priority）
+1️⃣ Security / Keystore / KeyMint / StrongBox
+📌 Observed Errors
+keystore2: Cannot connect to Keymint
+keystore2: No StrongBox Keymint available
+vold: keystore2 Keystore earlyBootEnded returned service specific error: -68
+HARDWARE_TYPE_UNAVAILABLE
+remote_provisioning: Failed to get RPC for TRUSTED_ENVIRONMENT
+
+🔍 Function Impact
+
+StrongBox / KeyMint HAL unavailable
+
+Early boot keystore phase failure
+
+Remote provisioning RPC unavailable
+
+⚠ Potential Impact
+
+File-based encryption (FBE)
+
+Hardware-backed keystore
+
+CTS security test failures
+
+GMS certification risk
+
+🎯 Importance
+
+🔴 High (Critical for CTS/GTS & production build)
+🟠 Medium if product spec does NOT require StrongBox
+
+2️⃣ DSP / Sensors / FastRPC (sscrpcd / ADSP)
+📌 Observed Errors
+apps_dev_init failed for domain 0, errno No such device
+open_dev (-1) failed
+remote_handle_open failed
+listener exits
+daemon will restart after 25ms
+
+🔍 Function Impact
+
+ADSP device node not found
+
+FastRPC communication failure
+
+Listener restart loop
+
+⚠ Potential Impact
+
+Sensor HAL malfunction
+
+Low power features
+
+Suspend / Wakeup sensor tests
+
+DSP offload features
+
+🎯 Importance
+
+🔴 High (Core platform integration issue)
+
+3️⃣ Modem / QMI / Cellular Interface
+📌 Observed Errors
+QMUXROUTER: Cannot open '/dev/cdc-wdm0'
+Error: No such file or directory
+
+🔍 Function Impact
+
+QMI control interface missing
+
+Modem communication initialization failure
+
+⚠ Potential Impact
+
+LTE / 5G data unavailable
+
+Radio services unstable
+
+Telephony stack incomplete
+
+🎯 Importance
+
+🔴 High (If cellular required)
+
+🟠 中重要性（Medium Priority）
+4️⃣ SELinux / Audit System
+📌 Observed Errors
+audit_backlog > audit_backlog_limit
+audit: backlog limit exceeded
+avc: denied { open/getattr/map } ... permissive=1
+
+🔍 Function Impact
+
+Excessive AVC denials
+
+Audit logs overflow
+
+Running in permissive mode
+
+⚠ Potential Impact
+
+Log loss (audit_lost)
+
+Debug difficulty
+
+Will become real blocking issue in enforcing mode
+
+CTS/GTS failures
+
+🎯 Importance
+
+🟠 Medium (Debug phase)
+🔴 High (Production / Certification phase)
+
+5️⃣ Graphics / SurfaceFlinger / Gralloc
+📌 Observed Warning
+Layer: gatherBufferInfo: Received unknown dataspace from gralloc
+
+🔍 Function Impact
+
+Buffer dataspace mismatch
+
+⚠ Potential Impact
+
+Color space issues
+
+Possible UI anomalies
+
+Rare black screen if combined with HWC issues
+
+🎯 Importance
+
+🟠 Medium
+
+6️⃣ Qualcomm Time Services
+📌 Observed Errors
+Unable to open file for read
+Error in accessing storage
+/data/vendor/time/ats_*
+
+🔍 Function Impact
+
+Time offset file missing
+
+RTC synchronization incomplete
+
+⚠ Potential Impact
+
+Time drift
+
+NTP resync delay
+
+🎯 Importance
+
+🟠 Medium
+
+7️⃣ Performance Overlay Missing
+📌 Observed Warning
+Unable to open '/system/framework/QXPerformance.dm'
+
+🔍 Function Impact
+
+Performance tuning overlay not loaded
+
+⚠ Potential Impact
+
+Suboptimal performance profile
+
+Feature toggles inactive
+
+🎯 Importance
+
+🟠 Medium–Low
+
+🟡 低重要性（Low Priority）
+8️⃣ Diag / Logging Interface
+📌 Observed Errors
+Diag_LSM_Init: Failed to open handle to diag driver
+failed to connect to diag socket
+
+🔍 Function Impact
+
+Diagnostic interface unavailable
+
+⚠ Potential Impact
+
+QXDM logging disabled
+
+Does NOT affect normal user experience
+
+🎯 Importance
+
+🟡 Low
+
+9️⃣ Root / su related AVC denials
+📌 Observed
+scontext=u:r:su:s0
+avc: denied ...
+
+🔍 Function Impact
+
+Root shell permission noise
+
+⚠ Potential Impact
+
+No user impact
+
+Certification concern only
+
+🎯 Importance
+
+🟡 Low (High only if shipping production build)
+
+🔟 Battery / Charging / Fuel Gauge Logs
+📌 Observed
+Get charging error status = 0
+fg_read_rsoc ...
+battery_chg_check_JEITA_behavior ...
+
+🔍 Function Impact
+
+Charging debug information
+
+⚠ Potential Impact
+
+Minimal (status = 0 means OK)
+
+🎯 Importance
+
+🟡 Low
