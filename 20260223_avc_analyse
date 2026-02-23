@@ -1,0 +1,165 @@
+以 ActivityManager: Posting BOOT_COMPLETED user #0 為基準點（02-11 21:06:00.896）
+
+再往後抓 2 分鐘（避免剛開機大量初始化雜訊）
+
+分析區間：02-11 21:08:00 ~ 03-01 01:06:08（下一次 kernel boot 前）
+
+並且已依你要求 忽略 root/su 與 /data/local* 相關 denial
+
+在這個「穩定後區間」裡，我抓到 84 筆（去除你指定忽略後） 的 AVC denial，主力集中在下面幾個 domain（由多到少）：
+
+system_server：25
+
+system_suspend：19
+
+vendor_hal_perf_default：18
+
+netd：6
+
+secure_element：6
+
+其他零星（SystemUI/thermal/vendor_init…）：少量
+
+下面我只講「穩定後真正值得處理的」，並給你建議的修法方向（先修行為 vs 補 sepolicy）。
+
+
+📊 SELinux AVC Denial 統計（開機穩定後）
+
+👉 已忽略：
+
+u:r:su:*
+
+/data/local*
+
+boot 初期雜訊
+
+排名	Domain (scontext)	數量	主要類型	建議等級
+1	system_server	25	binderfs transaction log read	🟡 中
+2	system_suspend	19	sysfs wakeup read	🔴 高
+3	vendor_hal_perf_default	18	sysfs create/add_name	🔴 高（設計問題）
+4	netd	6	/proc/net create	🔴 高（不建議放權）
+5	secure_element	6	system_data_file create	🟠 中高
+6	platform_app (SystemUI)	4	bluetooth_prop read	🟢 低
+7	vendor_systemhelper_app	3	cache tmp file	🟠 中
+8	init	2	/data/nativetest getattr	🟢 低
+9	linkerconfig	1	capability kill	🟢 低
+📈 依「行為類型」再做一次分類
+
+這個通常比 domain 更有用（policy review 常用）
+
+行為類型	數量	來源
+sysfs read	19	system_suspend
+sysfs create/add_name	18	perf HAL
+binderfs read	25	system_server
+proc create	6	netd
+data file create	9	secure_element / systemhelper
+property read	4	SystemUI
+capability	1	linkerconfig
+🔥 一眼看懂結論（工程角度）
+
+如果只看 開機穩定後，你的 SELinux 問題其實非常集中：
+
+🟥 真正需要優先看的只有三塊
+① system_suspend → wakeup sysfs
+
+👉 這跟你現在 CTS suspend / resume debug 高度相關
+
+② vendor_hal_perf_default → sysfs create
+
+👉 這個不是 policy 問題，是 HAL 行為不合理
+
+sysfs 不應該 user-space create
+
+③ netd → /proc/net create
+
+👉 這個我會直接標成 Architecture Risk
+
+enforcing 不該允許
+
+🧩 如果你要更專業的報告格式
+
+我可以幫你直接生一版：
+
+SELinux Stable Phase Report
+├── Top Offenders (Domain Ranking)
+├── Access Pattern Heatmap
+├── Must-Fix vs Ignore 分類
+├── 建議 Policy Patch List
+
+而且我可以再幫你做一個👇
+
+📊 「開機前 vs 穩定後」對比圖
+
+很多平台 review 超愛看這個，
+可以一秒證明：
+
+👉 你的 SELinux 噪音主要來自 boot early，不是 steady state
+
+你要不要我幫你直接把：
+
+🔥「可貼到 Gerrit review 的 SELinux Summary 表」
+
+整理出來？
+
+（那個是 Qualcomm / AOSP reviewer 最吃的一種格式 😄） 
+
+在幫我增加一欄 說明要權限的內容
+
+好 👍
+我把你剛剛的 SELinux 穩定後統計表，再加上一欄：
+
+✅ 「需要的權限內容（perms）」
+👉 這一欄是直接給你做 policy review / Gerrit 用的。
+
+📊 SELinux AVC Denial 統計（開機穩定後）
+
+（已忽略 root + /data/local）
+
+排名	Domain	數量	主要類型	🔐 需要權限內容（perms）	建議等級
+1	system_server	25	binderfs transaction log	file { read open getattr } on binderfs_logs_transactions	🟡 中
+2	system_suspend	19	wakeup sysfs read	dir { open read } + file { open read getattr }	🔴 高
+3	vendor_hal_perf_default	18	cpu/gpu sysfs create	dir { add_name } + file { create write }	🔴 高⚠️
+4	netd	6	/proc/net globalAlert	dir { add_name } + file { create write }	🔴 高⚠️
+5	secure_element	6	oat/cache tmp	dir { add_name } + file { create open rename }	🟠 中高
+6	platform_app (SystemUI)	4	bluetooth_prop	file { read open getattr map }	🟢 低
+7	vendor_systemhelper_app	3	app cache tmp	dir { add_name } + file { create open rename }	🟠 中
+8	init	2	/data/nativetest	dir { getattr search } + file { getattr open read }	🟢 低
+9	linkerconfig	1	capability	capability { kill }	🟢 低
+📈 行為類型 × 權限內容（另一種看法）
+
+這個是 SELinux reviewer 最常用的分類：
+
+行為	典型 perms	來源
+sysfs read	open read getattr	system_suspend
+sysfs create ⚠️	add_name create write	perf HAL
+binderfs log read	read open getattr	system_server
+proc create ⚠️	add_name create	netd
+app data tmp	create rename open	secure_element
+property read	read open map	SystemUI
+🚨 我幫你再補一個「SELinux reviewer 一看就懂」的小結論
+
+如果你未來要回 enforcing：
+
+🔥 絕對不要直接補 allow 的（優先修行為）
+Domain	原因
+vendor_hal_perf_default	user-space 不該 create sysfs
+netd	/proc/net create 風險極高
+
+👉 這兩個是 設計問題，不是單純 policy。
+
+🟢 可以考慮補 minimal allow 的
+Domain	原因
+system_suspend	合理讀 wakeup sysfs
+system_server	binder debug log
+🧩 如果你要更完整（很多平台會做）
+
+我可以再幫你升級成：
+
+📊「SELinux Patch 建議欄位版」
+
+表格會長這樣：
+
+Domain	Target Type	Class	Perms	建議 action
+system_suspend	sysfs_wakeup	file	read/open	allow
+perf HAL	vendor_sysfs_msm_perf	file	create	❌ fix HAL
+netd	proc_net	file	create	❌ fix behavior
