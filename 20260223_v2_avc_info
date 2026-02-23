@@ -1,0 +1,13 @@
+| 排名 | Domain (scontext)         | 數量 | 主要類型                                                                                  | 建議等級                                 |
+| -: | ------------------------- | -: | ------------------------------------------------------------------------------------- | ------------------------------------ |
+|  1 | `system_server`           | 25 | 讀取 `binderfs_logs_transactions`（ANR/transactions log 相關）被擋                            | **高**（系統核心服務；未來 enforcing 風險大）       |
+|  2 | `system_suspend`          | 27 | 讀 sysfs wakeup 節點：`/sys/.../wakeup*/event_count`、`wakeup114` 等                        | **高**（直接跟 suspend/resume 觀測行為相關）     |
+|  3 | `vendor_hal_perf_default` | 26 | Perf HAL 嘗試建立/寫入 sysfs（`cpu_min_freq`, `cpu_max_freq`, `min_freq`, `force_*`, `pl`）被擋 | **高**（效能/功耗策略常駐；轉 enforcing 會影響效能調度） |
+|  4 | `netd`                    |  8 | 在 `/proc/net` 建 `globalAlert`（add_name/create）被擋                                      | **高**（網路守護程序；常駐且影響面大）                |
+|  5 | `secure_element`          |  6 | 在 `/data/user/0/com.android.se/cache/...` 建檔/寫入/開啟被擋                                  | 中（可能影響 SE 快取/效能；看功能是否必須）             |
+|  6 | `platform_app`            |  4 | SystemUI 讀/開/映射 `/dev/__properties__/... bluetooth_prop` 被擋                           | 中（多為資訊存取；但 SystemUI 常駐）              |
+|  7 | `hal_thermal_default`     |  2 | Thermal HAL 嘗試建 `sysfs_thermal` 節點（trip point）被擋                                      | 中（若真要寫 trip point，enforcing 會有風險）    |
+|  8 | `vendor_init`             |  2 | vendor init 嘗試在 sysfs 建 `shutdown` 節點被擋                                               | 低～中（看是否你們平台真的需要這個節點）                 |
+|  9 | `vendor_wlc_app`          |  1 | `service_manager find`（找 `vendor.qti.hardware.perf2.IPerf/default`）被擋                 | 低（偏服務查找權限整理）                         |
+| 10 | `vendor_embmssl_app`      |  1 | `service_manager find`（找 `vendor.qti.hardware.embmssl.IEmbms/default`）被擋              | 低                                    |
+| 11 | `vdc`                     |  1 | `capability kill` 被擋                                                                  | 低（但若真的要 kill，enforcing 會踩雷）          |
