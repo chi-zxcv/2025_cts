@@ -1,0 +1,195 @@
+https://source.android.com/docs/security/features/selinux/implement
+
+
+🔐 SELinux Context Files 整理（Android）
+
+在 Android SELinux 裡，Context files 的功能就是「幫物件貼標籤」。
+標籤（label）決定：
+
+哪個 process 可以存取什麼資源
+
+1️⃣ file_contexts
+
+📁 用來替「檔案」指定 label
+
+🔹 功能
+
+指定：
+
+/system/bin/mydaemon   u:object_r:mydaemon_exec:s0
+🔹 使用場景
+
+新增 daemon
+
+新增 vendor binary
+
+新增 device node
+
+自訂資料目錄
+
+🔹 何時生效？
+情境	說明
+重 build image	重新產生 filesystem image
+restorecon	手動重新貼標
+OTA 升級	system / userdata 會自動套用
+其他 partition	需在 init.board.rc 加 restorecon_recursive
+🔹 常見錯誤
+
+新 binary 沒貼 exec type
+
+/data 目錄沒貼 data_file type
+
+忘記 restorecon 導致 label 不更新
+
+2️⃣ genfs_contexts
+
+📦 用來替「不支援 extended attribute 的 filesystem」指定 label
+
+例如：
+
+/proc
+
+/sys
+
+vfat
+
+debugfs
+
+🔹 為什麼需要？
+
+這些 FS 不能存 xattr，所以不能用 file_contexts。
+
+🔹 範例
+genfscon sysfs /devices/platform/soc/... u:object_r:sysfs_wakeup:s0
+🔹 生效條件
+
+⚠ 重要：
+
+policy reload 可能不會改已存在 inode
+
+需要 reboot
+
+或 unmount/mount
+
+3️⃣ property_contexts
+
+📡 用來替 Android system properties 貼標籤
+
+例如：
+
+persist.vendor.myprop   u:object_r:vendor_prop:s0
+🔹 作用
+
+控制：
+
+哪些 process 可以 setprop
+
+哪些 process 可以 getprop
+
+🔹 讀取者
+
+init 在開機時讀取
+
+4️⃣ service_contexts
+
+📞 用來替 Binder Service 指定 label
+
+例如：
+
+my.service   u:object_r:my_service:s0
+🔹 控制什麼？
+
+哪個 process 可以 register service
+
+哪個 process 可以 lookup service
+
+🔹 讀取者
+
+servicemanager 啟動時讀取
+
+5️⃣ seapp_contexts
+
+📱 用來替 App Process & /data/data 目錄貼標籤
+
+🔹 控制內容
+
+App process domain
+
+/data/data/<pkg> 目錄 label
+
+🔹 依據條件
+
+package name
+
+UID
+
+seinfo tag
+
+🔹 讀取者
+Component	讀取時機
+zygote	每次 app 啟動
+installd	開機
+6️⃣ mac_permissions.xml
+
+🔏 依照 app signature 指派 seinfo tag
+
+🔹 流程
+APK signature
+   ↓
+mac_permissions.xml
+   ↓
+產生 seinfo tag
+   ↓
+seapp_contexts 根據 seinfo 指派 domain
+🔹 作用
+
+可讓：
+
+特定簽名 app 使用特權 domain
+
+vendor app 給不同 sepolicy
+
+🔹 讀取者
+
+system_server 啟動時讀
+
+7️⃣ keystore2_key_contexts
+
+🔑 用來替 Keystore 2 namespace 指定 label
+
+🔹 特色
+
+舊版 Keystore：
+
+只看 UID/AID namespace
+
+Keystore2：
+
+加入 SELinux namespace 控制
+
+🔹 作用
+
+限制：
+
+哪個 domain 可以存取哪個 key namespace
+
+🧠 全部 Context 檔案對照表
+檔案	控制對象	讀取者	常見用途
+file_contexts	實體檔案	kernel + userspace	binary、/data、device
+genfs_contexts	proc/sys/vfat	kernel	sysfs 權限
+property_contexts	system property	init	setprop 控制
+service_contexts	binder service	servicemanager	service register/lookup
+seapp_contexts	app process	zygote	app domain 分配
+mac_permissions.xml	app signature	system_server	seinfo 分派
+keystore2_key_contexts	key namespace	keystore2	key access control
+
+
+
+Context File	貼標對象	控制的是	由誰讀取	何時生效	常見使用情境
+file_contexts	實體檔案	檔案存取權限	kernel + userspace	build / restorecon / OTA	新 daemon、新目錄
+genfs_contexts	sysfs / proc / vfat	虛擬檔案系統權限	kernel	reboot / remount	/sys/... AVC
+property_contexts	system property	誰可 set/get prop	init	開機時	persist.vendor.xxx
+service_contexts	Binder service	誰可 register/lookup	servicemanager	servicemanager 啟動時	新 HAL / service
+seapp_contexts	App process + /data/data	App domain 分派	zygote / installd	App 啟動時	特權 app
+mac_permissions.xml	App signature	seinfo tag 分派	system_server	開機	依簽名分 domain
+keystore2_key_contexts	Keystore2 namespace	key 存取權限	keystore2 daemon	keystore2 啟動	key namespace 控制
