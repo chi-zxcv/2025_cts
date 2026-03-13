@@ -1,0 +1,29 @@
+Android 15 音訊設定還原風險評估報告
+1. 觸覺回饋整合 (Haptics Integration)
+在 Android 15 中，音訊與震動的整合更為緊密，新版 XML 在多個輸出路由中加入了觸覺支援。
+*影響功能：音訊同步震動 (Audio-coupled Haptics)。
+*具體現象：
+  -舊版 XML 缺乏 haptics output 的 MixPort 定義。
+  -舊版路由（Routes）中未將震動訊號導向 Speaker 或 Earpiece。
+  -後果：鈴聲震動同步、遊戲中的音訊觸覺回饋功能將完全失效。
+2. 通話進階功能 (Advanced Telephony Features)
+Android 15 針對通話場景引入了新的全域標籤與模式支援。
+*影響功能：通話篩選 (Call Screening) 與 虛擬語音助理接聽。
+*具體現象：
+  -新版 XML 加入了 call_screen_mode_supported="true" 的全域配置。
+  -後果：還原後，系統可能無法進入 Call Screen 模式，導致相關的 AI 通話助理功能無法正常啟動。
+3. 多媒體與硬體解碼支援 (Media Offload Support)
+新版 XML 大幅擴張了硬體直接解碼（Offload）的能力，這直接影響效能與功耗。
+*影響功能：高音質音樂播放與功耗最佳化。
+*具體現象：
+  -舊版遺失了 FLAC, ALAC, DSD, APE, DTS-HD 等多種格式的 compressed_offload 宣告。
+  -舊版 direct_pcm 不支援 24-bit 或 32-bit 的高採樣率輸出。
+  -後果：播放這些格式時，系統必須強制使用 CPU 進行軟體解碼，這會導致播放高音質音樂時耗電量顯著增加，且無法達到高解析（Hi-Res）音質輸出。
+4. 系統穩定性與資源管理 (System Stability & Resource)
+Android 15 的 Audio Framework 對於資源的分配有更精細的限制。
+*影響功能：多工錄音與系統穩定性。
+*具體現象：
+  -新版對 primary input 增加了 maxOpenCount="2" 及 maxActiveCount="2" 的硬性限制。
+  -新版將 xi:include 的引用路徑從「相對路徑」改為「絕對路徑」（如 /vendor/etc/...）。
+  -後果：資源衝突：舊版無限制設定可能導致多個 App 同時請求音訊輸入時發生競爭，造成錄音失敗。
+  -系統閃退 (Crash)：如果 Android 15 檔案架構不再支援舊版的相對路徑，audioserver 會因為找不到包含檔案而無法啟動，導致裝置完全沒有聲音。
